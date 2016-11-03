@@ -592,6 +592,7 @@ public func tokenize(_ source: String) -> [Token] {
     var lastNonWhitespaceIndex: Int?
     var closedGenericScopeIndexes: [Int] = []
     var nestedSwitches = 0
+    var potentialCombinedSymbolAndStartOfGenericIndex: Int?
 
     func processStringBody() {
         var string = ""
@@ -757,9 +758,29 @@ public func tokenize(_ source: String) -> [Token] {
                     processToken()
                     return
                 }
+                if string.characters.count > 1 &&
+                    string.hasSuffix("<") &&
+                    lastNonWhitespaceIndex.map({ tokens[$0] }) == .keyword("func") {
+                    potentialCombinedSymbolAndStartOfGenericIndex = tokens.endIndex - 1
+                }
+            case .startOfScope("("):
+                potentialCombinedSymbolAndStartOfGenericIndex = nil
             default:
                 break
             }
+            // Fix up symbol that's actually an operator and start of a generic scope
+            if let potentialSymbolOrStartOfGenericIndex = potentialCombinedSymbolAndStartOfGenericIndex,
+                case .symbol(">") = token {
+                if case let .symbol(operatorAndOpen) = tokens[potentialSymbolOrStartOfGenericIndex] {
+                    let realOperator = operatorAndOpen.substring(to: operatorAndOpen.index(before: operatorAndOpen.endIndex))
+                    tokens[tokens.endIndex - 1] = .endOfScope(">")
+                    tokens[potentialSymbolOrStartOfGenericIndex] = .symbol(realOperator)
+                    tokens.insert(.startOfScope("<"), at: potentialSymbolOrStartOfGenericIndex + 1)
+                } else {
+                    assertionFailure()
+                }
+            }
+
             // Fix up misidentified generic that is actually a pair of operators
             if let lastNonWhitespaceIndex = lastNonWhitespaceIndex {
                 let lastToken = tokens[lastNonWhitespaceIndex]
