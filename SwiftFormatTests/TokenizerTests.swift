@@ -793,6 +793,24 @@ class TokenizerTests: XCTestCase {
         XCTAssertEqual(tokenize(input), output)
     }
 
+    func testGenericOperatorDeclaration() {
+        let input = "func ==<T>(bar:T)"
+        let output: [Token] = [
+            .keyword("func"),
+            .whitespace(" "),
+            .symbol("=="),
+            .startOfScope("<"),
+            .identifier("T"),
+            .endOfScope(">"),
+            .startOfScope("("),
+            .identifier("bar"),
+            .symbol(":"),
+            .identifier("T"),
+            .endOfScope(")"),
+        ]
+        XCTAssertEqual(tokenize(input), output)
+    }
+
     func testGenericClassInit() {
         let input = "foo = Foo<Int,String>()"
         let output: [Token] = [
